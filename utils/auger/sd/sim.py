@@ -23,6 +23,7 @@ condor_default_dict = {
 python_default_dict = {
     'rethrows': 1,                          # how many times shower is simulated (with different seed)
     'n_particles': 30_000,                  # decrease number for quick and dirty test simulation
+    'seed': 0                               # seed(s) used for simulation ( = range(seed, seed+rethrows) )
 }
 
 class Simulation():
@@ -113,6 +114,7 @@ class Simulation():
             py.write(f"SRC = \"{self.python_kwargs['src']}\"\n")
             py.write(f"OUT = \"{self.python_kwargs['out']}\"\n")
             py.write(f"RETHROWS = {self.python_kwargs['rethrows']}\n")
+            py.write(f"SEED = {self.python_kwargs['seed']}\n")
             py.write(f"n = {self.python_kwargs['n_particles']}\n")
             py.write(CONSTANTS.WORD.RUN_PY_FOOTER)
         py_path.chmod(py_path.stat().st_mode | stat.S_IEXEC)

@@ -135,6 +135,6 @@ def prepare_bootstrap(name, src, out, i, r, n) -> bool:\n\
     RUN_PY_FOOTER = "\
 i = int(sys.argv[1])\n\
 \n\
-for r in range(0, RETHROWS):\n\
+for r in range(SEED, SEED + RETHROWS):\n\
     if target_bootstrap := prepare_bootstrap(NAME, SRC, OUT, i, r, n):\n\
         subprocess.run([f\"{NAME}/work/{OUT[4:].replace('/','_')}/run.sh\", target_bootstrap])"
