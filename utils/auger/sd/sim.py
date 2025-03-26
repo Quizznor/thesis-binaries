@@ -264,6 +264,18 @@ class Simulation():
 
 class SimData():
 
+    body = np.dtype([
+        ("id", np.uintc),
+        ("spd", np.double),
+        ("traces", (
+            np.dtype([
+                ("pmt_id", np.short),
+                ('peak', np.float32),
+                ('base', np.float32),
+                ('trace', (np.short, 2048))
+            ]), 4))
+    ])
+
     def __init__(self, name: str, model: str, primary: str) -> None:
 
         self.name = name
@@ -274,7 +286,7 @@ class SimData():
         self.files = []
         for energy in os.listdir(path):
             files = os.listdir(path / energy)
-            is_candidate = lambda p: p.endswith("csv")
+            is_candidate = lambda p: not p.endswith("root")
             self.files += [path / f"{energy}/{f}" for f in filter(is_candidate, files)]
 
     
@@ -286,26 +298,46 @@ class SimData():
 
         iteration_index = 0
         while iteration_index < len(self):
-            yield Shower(np.loadtxt(self.files[iteration_index]))
+            energy, zenith = np.fromfile(self.files[iteration_index], dtype=np.double, count=2)
+            yield Shower(energy, zenith, np.fromfile(self.files[iteration_index], dtype=self.body, offset=16))
             iteration_index += 1
           
         return StopIteration
 
 
+    def __call__(self, fctn: callable, 
+                 e_bins: list = None, 
+                 t_bins: list = None,
+                 spd_bins: list = None) -> tuple[np.ndarray]:
+
+        e_bins = np.arange(16, 18.6, 0.5) if e_bins is None else e_bins
+        t_bins = np.arcsin(np.sqrt(np.arange(0, 1.1, 0.2))) if t_bins is None else t_bins
+        spd_bins = np.arange(100, 1501, 100) if spd_bins is None else spd_bins
+
+        hit = np.zeros(shape=(len(e_bins)-1, len(t_bins)-1, len(spd_bins)-1))
+        all = np.zeros(shape=(len(e_bins)-1, len(t_bins)-1, len(spd_bins)-1))
+
+        for shower in self:
+            e_idx = np.digitize(shower.energy, e_bins)
+            # for (_id, trig) in zip(shower.trigger(fctn)):
+
+            print(e_idx)
+
+
+        
+        return e_bins, t_bins, hit/all
+
+
 class Shower():
 
-    def __init__(self, event_data: list[np.ndarray]) -> None:
+    def __init__(self, energy, zenith, station_data: np.ndarray) -> None:
 
-        energy = set(event_data[:, 0])
-        zenith = set(event_data[:, 1])
-        assert len(energy) == len(zenith) == 1, "Malformed shower data"
-
-        self.energy = energy.pop()
-        self.zenith = zenith.pop()
+        self.energy = energy
+        self.zenith = zenith
         self.stations = []
 
-        for station_data in np.split(event_data[:, 2:], len(event_data) // 4):
-            self.stations.append(Station(station_data))
+        for s in station_data:
+            self.stations.append(Station(s['id'], s['spd'], s['traces']))
 
     
     def __repr__(self) -> str:
@@ -327,16 +359,18 @@ class Shower():
 
 class Station():
 
-    def __init__(self, station_data) -> None:
-        ids = set(station_data[:, 0])
-        spd = set(station_data[:, 1])
-        assert len(ids) == len(spd) == 1, "Malformed station data"
+    def __init__(self, station_id, spd, trace_data) -> None:
 
-        self.id = int(ids.pop())
-        self.spd = spd.pop()
+        self.id = station_id
+        self.spd = spd
 
-        self.wcd = station_data[:-1, 2:]
-        self.ssd = station_data[-1, 2:]
+        self.wcd = np.zeros((3, 2048))
+        self.ssd = np.zeros(2048)
+
+        for i, trace in enumerate(trace_data):
+            calibrated_trace = np.floor(trace['trace'] - trace['base'] ) / trace['peak']
+            if i < 3: self.wcd[i, :] = calibrated_trace
+            else: self.ssd = calibrated_trace
 
     
     def __repr__(self) -> str:
