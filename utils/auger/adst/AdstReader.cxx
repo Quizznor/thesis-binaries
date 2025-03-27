@@ -123,8 +123,9 @@ void ExtractDataFromAdstFiles(fs::path pathToAdst)
 
 int main(int argc, char** argv) 
 {
-  int start = 1;
-  for (int i=start; i < argc; i++)
+  int start = 2000;
+  int end =  argc;
+  for (int i=start; i < end; i++)
   {
     std::cout << "Processing " << i << "/" << argc-1 << ": " << argv[i] << "\n";
     ExtractDataFromAdstFiles(fs::path(argv[i]));
