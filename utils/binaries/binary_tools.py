@@ -95,40 +95,6 @@ def kd1d_estimate(samples: Iterable, **kwargs: dict) -> Callable:
     return lambda x: np.exp(kernel_density.score_samples(np.array(x)[:, np.newaxis]))
 
 
-def progress_bar(
-    step: int, all_steps: int, in_place: bool = False, name: str = ""
-) -> None:
-    """print progress of (typically) for loop to stdout, together with time information"""
-
-    import time
-
-    global start_of_progressbar
-    step += 1
-
-    if step == all_steps:
-        return "done... =)"
-
-    try:
-        _ = start_of_progressbar
-    except NameError:
-        start_of_progressbar = time.time()
-
-    convert = lambda x: f"{x//3600:02}:{(x%3600)//60:02}:{x%60:02}"
-
-    padding = f" {len(str(all_steps)) + 1}"
-    steps_info = f"{step:{padding}}/{all_steps} // {f'{step/all_steps * 1e2:.2f}':>6}%"
-    elapsed = int(time.time() - start_of_progressbar)
-    per_step = elapsed / step
-    estimated = int(per_step * (all_steps - step))
-
-    time_info = (
-        f"running {name} since: {convert(elapsed)} // ETA: {convert(estimated)} // {int(per_step * 1e3):}ms/step"
-        + "         "
-    )
-
-    print(" || ".join([steps_info, time_info]), end="\r" if in_place else "\n")
-
-
 def bootstrap_ci(
     fctn: callable,
     popt: list,
@@ -171,3 +137,17 @@ def pickle_load(path_to_file: str) -> Any:
         data = pickle.load(f)
 
     return data
+
+
+def profile(X: np.ndarray, Y: np.ndarray, bins) -> tuple[list[np.number]]:
+
+    means, stds, centers = [], [], []
+    for i in range(1, len(bins)):
+        mask = np.logical_and(bins[i-1] <= X, X < bins[i])
+        this_bin_x, this_bin_y = X[mask], Y[mask]
+
+        means.append(np.median(this_bin_y))
+        stds.append(np.std(this_bin_y))
+        centers.append(np.nanmean(this_bin_x))
+
+    return centers, means, stds

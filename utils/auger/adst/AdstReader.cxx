@@ -77,8 +77,8 @@ void ExtractDataFromAdstFiles(fs::path pathToAdst)
     // allocate memory for data
     const SDEvent& sdEvent = recEvent->GetSDEvent();                              // contains the traces
     const GenShower& genShower = recEvent->GetGenShower();                        // contains the shower
-    DetectorGeometry detectorGeometry = DetectorGeometry();                       // contains SPDistance
-    recEventFile.ReadDetectorGeometry(detectorGeometry);
+    // DetectorGeometry detectorGeometry = DetectorGeometry();                       // contains SPDistance
+    // recEventFile.ReadDetectorGeometry(detectorGeometry);
 
     // create csv file streams
     ofstream traceFile(csvTraceFile.string(), std::ios::out | std::ios::binary);
@@ -91,10 +91,8 @@ void ExtractDataFromAdstFiles(fs::path pathToAdst)
     traceFile.write(reinterpret_cast<const char*>(&showerEnergy), sizeof showerEnergy);
     traceFile.write(reinterpret_cast<const char*>(&showerZenith), sizeof showerZenith);
 
-    const auto showerAxis = genShower.GetAxisSiteCS();
-    const auto showerCore = genShower.GetCoreSiteCS();  
-
-    Detector detector = Detector();
+    // const auto showerAxis = genShower.GetAxisSiteCS();
+    // const auto showerCore = genShower.GetCoreSiteCS();
 
     // loop over all triggered stations
     for (const auto& recStation : sdEvent.GetStationVector())
@@ -142,11 +140,12 @@ void ExtractDataFromAdstFiles(fs::path pathToAdst)
 
 int main(int argc, char** argv) 
 {
-  int start = 4170;
-  int end = argc;
+  int start = std::atoi(argv[1]) + 3;
+  int end = std::atoi(argv[2]) + 3;
+
   for (int i=start; i < end; i++)
   {
-    std::cout << "Processing " << i << "/" << argc-1 << ": " << argv[i] << "\n";
+    std::cout << "Processing " << i - 2 << "/" << end - 2 << ": " << argv[i] << "\n";
     ExtractDataFromAdstFiles(fs::path(argv[i]));
   }
   return 0;

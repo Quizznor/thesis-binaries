@@ -305,7 +305,7 @@ class SimData():
         return StopIteration
 
 
-    def __call__(self, fctn: callable, 
+    def trigger(self, fctn: callable, 
                  e_bins: list = None, 
                  t_bins: list = None,
                  spd_bins: list = None) -> tuple[np.ndarray]:
@@ -321,11 +321,13 @@ class SimData():
             e_idx = np.digitize(shower.energy, e_bins)
             # for (_id, trig) in zip(shower.trigger(fctn)):
 
-            print(e_idx)
-
-
         
         return e_bins, t_bins, hit/all
+
+
+    def apply(self, fctn: callable) -> Iterator:
+        for file in self.files:
+            yield fctn(file)
 
 
 class Shower():
