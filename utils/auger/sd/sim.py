@@ -15,8 +15,8 @@ condor_default_dict = {
             'max_idle': "150",              # don't insert jobs if n_jobs_idle is more than this
             'request_memory': "1G",         # put job on hold if RAM exceeds request_memory
             'max_materialize': "150",       # number of total active/running/idle jobs on condor
-            'should_transfer_files': "YES"  # needed to transfer output root file to /cr/work
-
+            'should_transfer_files': "YES", # needed to transfer output root file to /cr/work
+            'queue' : 0                     # number of simulations to run in condor
             # cpu, gpu etc.
         }
 
@@ -72,8 +72,8 @@ class Simulation():
         
         
         # set condor/python kwargs
-        self.condor_kwargs, self.python_kwargs, queue = self._get_simulation_kwargs(primary, energy, model, kwargs)
-        self.logger.info(f"Corsika dir found, {queue} files available")
+        self.condor_kwargs, self.python_kwargs, n_files = self._get_simulation_kwargs(primary, energy, model, kwargs)
+        self.logger.info(f"Corsika dir found, {n_files} files available")
 
         self.work_path = self.path / f"work/{model}_{primary}_{energy}"
         self.work_path.mkdir(parents=True, exist_ok=True)
@@ -86,6 +86,9 @@ class Simulation():
             send.write(f"condor_submit condor.sub")
         send_path.chmod(send_path.stat().st_mode | stat.S_IEXEC)
 
+        if not self.condor_kwargs['queue']:
+            self.condor_kwargs['queue'] = n_files
+
         # make run.sub file
         sub_path = self.work_path / "condor.sub"
         with sub_path.open("w", encoding="utf-8") as sub:
@@ -94,8 +97,10 @@ class Simulation():
             sub.write(CONSTANTS.WORD.SIM_REQS)
             sub.write("\n\n")
             for key, value in self.condor_kwargs.items():
+                if key == "queue": continue
                 sub.write(f"{key: <24}= {value}\n")
-            sub.write(f'\nqueue {queue}')
+                
+            sub.write(f'\nqueue {self.condor_kwargs["queue"]}')
 
         # make run.sh file
         sh_path = self.work_path / "run.sh"
@@ -192,6 +197,10 @@ class Simulation():
         # TODO
         if out: raise NotImplementedError; os.system(f"rm -rf {self.path / 'out/*'}")
         if dat: raise NotImplementedError; os.system(f"rm -rf {self.path / 'dat/*'}")
+
+
+    def send_to_condor(self) -> int:
+        return subprocess.run([f"cd {self.work_path}; condor_submit condor.sub"], shell=True)
 
 
     def run(self, proc_no: int) -> int:
