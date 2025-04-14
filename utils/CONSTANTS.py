@@ -1,29 +1,34 @@
+__all__ = ["MONI_PATH", "HIST_PATH", 
+           "PLOT_PATH", "DATA_PATH",
+           "SCAN_PATH", "OFLN_PATH",
+           "UUB", "UB", "TIME"]
+
 from . import create_stream_logger
 from pathlib import Path
 import numpy as np
 import os
 
 const_logger = create_stream_logger("const")
-
 USERNAME = "filip"
+
 
 # fails if run on windows, but that's on you
 path_set = True
 match hostname := os.uname()[1]:
     case "debian12":
-        MONI_PATH: Path = Path("/home/filip/Data/monit_and_sd")
-        HIST_PATH: Path = Path("/home/filip/Data/monit_and_sd")
-        PLOT_PATH: Path = Path("/home/filip/Data/plots")
-        DATA_PATH: Path = Path("/home/filip/Data/")
-        SCAN_PATH: Path = Path("/home/filip/Public/xy-calibration")
-        OFLN_PATH: Path = Path("/home/filip/Public/offline/install/")
+        MONI_PATH: Path = Path(f"/home/{USERNAME}/Data/monit_and_sd")
+        HIST_PATH: Path = Path(f"/home/{USERNAME}/Data/monit_and_sd")
+        PLOT_PATH: Path = Path(f"/home/{USERNAME}/Data/plots")
+        DATA_PATH: Path = Path(f"/home/{USERNAME}/Data/")
+        SCAN_PATH: Path = Path(f"/home/{USERNAME}/Public/xy-calibration")
+        OFLN_PATH: Path = Path(f"/home/{USERNAME}/Public/offline/install/")
     case x if x.startswith("crc"):
-        MONI_PATH: Path = Path("/cr/work/filip/monit_and_sd")
-        HIST_PATH: Path = Path("/cr/work/filip/monit_and_sd")
-        PLOT_PATH: Path = Path("/cr/data01/filip/plots")
-        DATA_PATH: Path = Path("/cr/data01/filip/Data")
-        SCAN_PATH: Path = Path("/cr/data01/filip/xy-calibration")
-        OFLN_PATH: Path = Path("/cr/data01/filip/offline/install/")
+        MONI_PATH: Path = Path(f"/cr/work/{USERNAME}/monit_and_sd")
+        HIST_PATH: Path = Path(f"/cr/work/{USERNAME}/monit_and_sd")
+        PLOT_PATH: Path = Path(f"/cr/data01/{USERNAME}/plots")
+        DATA_PATH: Path = Path(f"/cr/data01/{USERNAME}/Data")
+        SCAN_PATH: Path = Path(f"/cr/data01/{USERNAME}/xy-calibration")
+        OFLN_PATH: Path = Path(f"/cr/data01/{USERNAME}/offline/install/")
     case _:
         const_logger.error(f"pathspecs for {hostname} not found")
         path_set = False
@@ -38,9 +43,16 @@ if path_set:
 
 GPS_OFFSET: int = 315964800
 
+class UB:
+
+    binning: np.ndarray = np.arange(-220, 463, 1) * 25e-9
+
 # Auger SD Station specifications
 # from Framework/SDetector/Station.h
 class UUB:
+
+    binning: np.ndarray = np.arange(-660, 1388, 1) * 8.33e-9
+
     WCD_PEAK_EDGES: np.ndarray = np.array(
         [4 * k for k in range(100)] + [400 + 16 * k for k in range(51)]
     )
@@ -62,6 +74,13 @@ class UUB:
     SSD_CHARGE: np.ndarray = 0.5 * (
         SSD_CHARGE_EDGES[1:] + SSD_CHARGE_EDGES[:-1]
     )
+
+class TIME:
+
+    ns_to_us: float = 1e-3
+    us_to_ns: float = 1e3
+    s_to_us: float = 1e6
+    us_to_s: float = 1e-6
 
 class WORD:
     SIM_HEADER = "\
