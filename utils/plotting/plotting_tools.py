@@ -293,3 +293,7 @@ def apply_datetime_format(ax: plt.Axes, which: str = "xaxis") -> None:
         ax.xaxis.set_major_formatter(formatter)
     elif which == "yaxis":
         ax.yaxis.set_major_formatter(formatter)
+
+
+def legend_outside_plot(ax: plt.Axes, **kwargs) -> None:
+    ax.legend(bbox_to_anchor=(0, 1.02,1,0.2), loc="lower left", **kwargs)
