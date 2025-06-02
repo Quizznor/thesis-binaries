@@ -320,18 +320,25 @@ class SimData():
                  spd_bins: list = None) -> tuple[np.ndarray]:
 
         e_bins = np.arange(16, 18.6, 0.5) if e_bins is None else e_bins
-        t_bins = np.arcsin(np.sqrt(np.arange(0, 1.1, 0.2))) if t_bins is None else t_bins
-        spd_bins = np.arange(100, 1501, 100) if spd_bins is None else spd_bins
+        t_bins = np.arcsin(np.sqrt(np.arange(0, 1.1, 0.2))) * 180/np.pi if t_bins is None else t_bins
+        spd_bins = np.arange(75, 2001, 75) if spd_bins is None else spd_bins
 
         hit = np.zeros(shape=(len(e_bins)-1, len(t_bins)-1, len(spd_bins)-1))
         all = np.zeros(shape=(len(e_bins)-1, len(t_bins)-1, len(spd_bins)-1))
 
-        for shower in self:
-            e_idx = np.digitize(shower.energy, e_bins)
-            # for (_id, trig) in zip(shower.trigger(fctn)):
+        for shower in tools.ProgressBar(self):
+            e_idx = np.digitize(np.log10(shower.energy), e_bins) - 1
+            t_idx = np.digitize(shower.zenith, t_bins) - 1
 
+            for i, (_, trig) in enumerate(zip(*shower.trigger(fctn))):
+                spd_idx = np.digitize(shower[i].spd, spd_bins) - 1
+
+                try:
+                    if trig: hit[e_idx, t_idx, spd_idx] += 1
+                    all[e_idx, t_idx, spd_idx] += 1
+                except IndexError: continue
         
-        return e_bins, t_bins, hit/all
+        return e_bins, t_bins, spd_bins, hit, all
 
 
     def apply(self, fctn: callable) -> Iterator:
