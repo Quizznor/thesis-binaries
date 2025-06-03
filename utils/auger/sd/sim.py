@@ -307,8 +307,9 @@ class SimData():
 
         iteration_index = 0
         while iteration_index < len(self):
-            energy, zenith = np.fromfile(self.files[iteration_index], dtype=np.double, count=2)
-            yield Shower(energy, zenith, np.fromfile(self.files[iteration_index], dtype=self.body, offset=16))
+            # energy, zenith = np.fromfile(self.files[iteration_index], dtype=np.double, count=2)
+            # yield Shower(energy, zenith, np.fromfile(self.files[iteration_index], dtype=self.body, offset=16))
+            yield Shower(self.files[iteration_index])
             iteration_index += 1
           
         return StopIteration
@@ -348,13 +349,17 @@ class SimData():
 
 class Shower():
 
-    def __init__(self, energy, zenith, station_data: np.ndarray) -> None:
+    # def __init__(self, energy, zenith, station_data: np.ndarray) -> None:
+    def __init__(self, file_path: Path) -> None:
 
-        self.energy = energy
-        self.zenith = zenith
+        self.energy, self.zenith = np.fromfile(file_path, 
+                                               dtype=np.double, 
+                                               count=2)
+
+        self.id = file_path
         self.stations = []
-
-        for s in station_data:
+        
+        for s in np.fromfile(file_path, dtype=SimData.body, offset=16):
             self.stations.append(Station(s['id'], s['spd'], s['traces']))
 
     
