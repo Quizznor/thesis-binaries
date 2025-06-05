@@ -82,6 +82,14 @@ class TIME:
     s_to_us: float = 1e6
     us_to_s: float = 1e-6
 
+class PLOT:
+    
+    ls_rotation = ["-", "--", ":", "-.",(0, (3, 5, 1, 5))]
+    marker_rotation = ["o", "s", "^", "v", "D"]
+
+    light_mode = ["k", "r", "b", "g", 'c']
+    dark_mode = ["gray", "r", "steelblue", "g"]
+
 class WORD:
     SIM_HEADER = "\
 # ************************************************************************************************\n\

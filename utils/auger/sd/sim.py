@@ -276,6 +276,7 @@ class SimData():
     body = np.dtype([
         ("id", np.uintc),
         ("spd", np.double),
+        ("is_tot", bool),
         ("traces", (
             np.dtype([
                 ("pmt_id", np.short),
@@ -360,7 +361,7 @@ class Shower():
         self.stations = []
         
         for s in np.fromfile(file_path, dtype=SimData.body, offset=16):
-            self.stations.append(Station(s['id'], s['spd'], s['traces']))
+            self.stations.append(Station(s))
 
     
     def __repr__(self) -> str:
@@ -370,7 +371,13 @@ class Shower():
     def __getitem__(self, idx: int) -> "Station":
         return self.stations[idx]
 
-    
+
+    def get_station(self, idx: int) -> "Station":
+        for station in self.stations:
+            if station.id != idx:continue
+            return station
+
+
     def trigger(self, fctn: callable) -> list[bool]:
         stations, triggers = [], []
         for station in self:
@@ -382,15 +389,15 @@ class Shower():
 
 class Station():
 
-    def __init__(self, station_id, spd, trace_data) -> None:
-
-        self.id = station_id
-        self.spd = spd
+    def __init__(self, station_data) -> None:
+        self.id = station_data['id']
+        self.spd = station_data['spd']
+        self.is_tot = station_data['is_tot']
 
         self.wcd = np.zeros((3, 2048))
         self.ssd = np.zeros(2048)
 
-        for i, trace in enumerate(trace_data):
+        for i, trace in enumerate(station_data['traces']):
             calibrated_trace = np.floor(trace['trace'] - trace['base'] ) / trace['peak']
             if i < 3: self.wcd[i, :] = calibrated_trace
             else: self.ssd = calibrated_trace
