@@ -151,3 +151,12 @@ def profile(X: np.ndarray, Y: np.ndarray, bins) -> tuple[list[np.number]]:
         centers.append(np.nanmean(this_bin_x))
 
     return centers, means, stds
+
+
+def running_mean(x: np.ndarray, y: np.ndarray, n: int = 10) -> np.ndarray:
+
+    conv_filter = np.ones(n) / n
+    running_mean_y = np.convolve(y, conv_filter, mode='valid')
+    running_mean_x = x[n//2:-(n//2)+1]
+
+    return running_mean_x, running_mean_y
