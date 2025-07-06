@@ -75,7 +75,7 @@ def kd1d_estimate(samples: Iterable, **kwargs: dict) -> Callable:
         * *samples* (``str``)                                                                                        : the samples for which a PDF is estimated via KDE
 
     Keywords:
-        * *bandwidth* (``float | {'scott' | 'silverman'}``)                                                      = 1 : parameter that determines the function smoothness
+        * *bandwidth* (``float | {'scott' | 'silverman'}``)                                                = 'scott' : parameter that determines the function smoothness
         * *algorithm* (``{'kd_tree' | 'ball_tree' | 'auto'}``)                                                = auto : tree algorithm to estimate the kernel density
         * *kernel* (``{'gaussian' | 'tophat' | 'epanechnikov' | 'exponential' | 'linear' | 'cosine'}``) = 'gaussian' : the kernel function
 
@@ -86,7 +86,7 @@ def kd1d_estimate(samples: Iterable, **kwargs: dict) -> Callable:
     from sklearn import neighbors
 
     kernel_density = neighbors.KernelDensity(
-        bandwidth=kwargs.get("bandwidth", 1.0),
+        bandwidth=kwargs.get("bandwidth", "scott"),
         algorithm=kwargs.get("algorithm", "auto"),
         kernel=kwargs.get("kernel", "gaussian"),
     )
@@ -152,11 +152,18 @@ def profile(X: np.ndarray, Y: np.ndarray, bins) -> tuple[list[np.number]]:
 
     return centers, means, stds
 
-
 def running_mean(x: np.ndarray, y: np.ndarray, n: int = 10) -> np.ndarray:
+
+    mask = np.zeros_like(x, dtype=bool)
+    for d in [x, y]:
+        try:
+            mask ^= np.isnan(d)
+        except: continue
+
+    x, y = x[~mask], y[~mask]
 
     conv_filter = np.ones(n) / n
     running_mean_y = np.convolve(y, conv_filter, mode='valid')
-    running_mean_x = x[n//2:-(n//2)+1]
+    running_mean_x = x[n//2:len(x)-(n//2)+1]
 
     return running_mean_x, running_mean_y
