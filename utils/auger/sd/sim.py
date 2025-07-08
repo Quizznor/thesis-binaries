@@ -137,7 +137,9 @@ class Simulation():
         ]), shell=True, executable='/bin/bash', stdout=subprocess.DEVNULL)
 
         self.logger.info("source compiled, we're done!")
-        self.status(full_status=True)
+
+        if kwargs.get("verbose", True):
+            self.status(full_status=True)
 
 
     def _get_simulation_kwargs(self, primary: str, energy: str, model: str, kwargs: dict) -> dict:
