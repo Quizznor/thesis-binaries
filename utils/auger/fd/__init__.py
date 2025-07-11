@@ -128,7 +128,7 @@ def PixelPlot(
             orientation=np.radians(60),
             facecolor=cmap(norm(pixel)),
             edgecolor=markcolor if ipix in markpixels else "k",
-            lw=kwargs.get("lw", 1),
+            lw=kwargs.get("marklw", 1) if ipix in markpixels else kwargs.get("lw", 1),
             zorder=2 if ipix in markpixels else 1,
         )
 

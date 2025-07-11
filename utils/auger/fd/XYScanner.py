@@ -278,7 +278,7 @@ class Campaign(XYRunContainer):
             cala_drift = kwargs.get('cala_drift', 0)
             drift_label = fr"($+\frac{{ {1e2*cala_drift}\% }}{{ \mathrm{{year}} }}$)" if cala_drift else ""
             ax.set_ylabel(f'XY calib. const. / std. calib. {drift_label}')
-            time_difference_years = (datetime(self.year, self.month) - datetime(2010,6, 1)).days / 365
+            time_difference_years = (datetime(self.year, self.month, 1) - datetime(2010,6, 1)).days / 365
             ax.fill_between([0,32], 1-0.099, 1+0.099, color='k', alpha=0.1, edgecolor='none')
         else:
             ax.set_ylabel(f'XY calib. const. / {kwargs.get("label", "custom norm")}')
