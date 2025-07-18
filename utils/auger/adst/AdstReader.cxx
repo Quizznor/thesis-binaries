@@ -162,6 +162,8 @@ void ExtractDataFromAdstFiles(fs::path pathToAdst)
       if (!recStation.IsDense()) continue;
 
       const auto stationId = recStation.GetId();
+
+      std::cout << stationId << "\n";
       // const auto SPD = detectorGeometry.GetStationAxisDistance(stationId, showerAxis, showerCore);  // in m
       const Double_t SPD = showerPlaneMap[stationId];
       const bool isTOT = recStation.IsTOT();
