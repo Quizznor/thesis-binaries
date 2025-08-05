@@ -16,15 +16,50 @@ condor_default_dict = {
             'request_memory': "1G",         # put job on hold if RAM exceeds request_memory
             'max_materialize': "150",       # number of total active/running/idle jobs on condor
             'should_transfer_files': "YES", # needed to transfer output root file to /cr/work
-            'queue' : 0                     # number of simulations to run in condor
+            'queue' : 5000                  # number of simulations to run in condor
             # cpu, gpu etc.
         }
 
 python_default_dict = {
-    'rethrows': 1,                          # how many times shower is simulated (with different seed)
+    'rethrows': None,                       # how many times shower is simulated (with different seed)
     'n_particles': 30_000,                  # decrease number for quick and dirty test simulation
     'seed': 0                               # seed(s) used for simulation ( = range(seed, seed+rethrows) )
 }
+
+def get_sim_files(target_path):
+
+    n_files_dictionary = {
+        "proton" : {
+        "16_16.5" : 5000, 
+        "16.6_17" : 5000, 
+        "17_17.5" : 5000, 
+        "17.5_18" : 5000, 
+        "18_18.5" : 3035, 
+        }, 
+        "photon" : {
+        "16_16.5" : 1250, 
+        "16.5_17" : 2499, 
+        "17_17.5" : 1250, 
+        "17.5_18" : 5000, 
+        "18_18.5" : 5000, 
+        }
+    }
+
+    primary, energy = str(target_path).split('/')[-2:]
+
+    try:
+        n_files = n_files_dictionary[primary][energy]
+    except KeyError:
+        
+        is_sim_file = (lambda s: s.startswith("DAT")
+                           and not s.endswith(".long")
+                           and not s.endswith(".lst")
+                           and not s.endswith(".gz"))
+        
+        n_files = len(list(filter(is_sim_file, os.listdir(target_path))))
+
+    return n_files
+
 
 class Simulation():
 
@@ -70,11 +105,22 @@ class Simulation():
 
         self.logger.info("filesystem established successfully")
         
-        
         # set condor/python kwargs
-        self.condor_kwargs, self.python_kwargs, n_files = self._get_simulation_kwargs(primary, energy, model, kwargs)
-        self.logger.info(f"Corsika dir found, {n_files} files available")
+        self.condor_kwargs, self.python_kwargs = self._get_simulation_kwargs(primary, energy, model, kwargs)
+        n_files = get_sim_files(self.python_kwargs["src"])
 
+        if self.python_kwargs["rethrows"] is None:
+            self.python_kwargs["rethrows"] = max(int(self.condor_kwargs['queue'] / n_files), 1)
+            desired_files = self.condor_kwargs['queue']
+            actual_files = n_files * self.python_kwargs['rethrows']
+
+            if desired_files != actual_files:
+                self.logger.warning(f"You wanted {desired_files} simulations, I will produce {actual_files} simulations instead")
+            
+            self.condor_kwargs['queue'] = min(int(self.condor_kwargs['queue'] / self.python_kwargs['rethrows']), n_files)
+
+        self.logger.info(f"Corsika {n_files = }, rethrows set to {self.python_kwargs['rethrows']}")
+        
         self.work_path = self.path / f"work/{model}_{primary}_{energy}"
         self.work_path.mkdir(parents=True, exist_ok=True)
 
@@ -85,9 +131,6 @@ class Simulation():
             send.write("cd work/$1_$2_$3\n")
             send.write(f"condor_submit condor.sub")
         send_path.chmod(send_path.stat().st_mode | stat.S_IEXEC)
-
-        if not self.condor_kwargs['queue']:
-            self.condor_kwargs['queue'] = n_files
 
         # make run.sub file
         sub_path = self.work_path / "condor.sub"
@@ -144,11 +187,6 @@ class Simulation():
 
     def _get_simulation_kwargs(self, primary: str, energy: str, model: str, kwargs: dict) -> dict:
 
-            is_sim_file = (lambda s: s.startswith("DAT")
-                           and not s.endswith(".long")
-                           and not s.endswith(".lst")
-                           and not s.endswith(".gz"))
-
             condor_kwargs = self._get_condor_kwargs(primary, energy, model, kwargs)
 
             # get source path of simulation files
@@ -157,7 +195,8 @@ class Simulation():
             if min_energy <= 18.5:
                 library = "prague"
             else: library = "napoli"
-            target_path /= f"{library}/{model.upper()}/{primary.lower()}/{energy}"
+            target_path /= f"{library}"
+            target_path /= f"{model.upper()}/{primary.lower()}/{energy}"
 
             if not os.path.isdir(target_path):
                 raise LookupError(f"Data dir not found for keys {model}, {primary}, {energy}")
@@ -171,7 +210,7 @@ class Simulation():
                 if python_default_dict.get(key, None) is not None:
                     python_kwargs[key] = val           
 
-            return condor_kwargs, python_kwargs, len(list(filter(is_sim_file, os.listdir(target_path))))
+            return condor_kwargs, python_kwargs
     
 
     def _get_condor_kwargs(self, primary, energy, model, kwargs) -> dict:
@@ -216,9 +255,9 @@ class Simulation():
     def status(self, full_status: bool = False) -> None:
 
         print("")
-        print("*****************************")
-        print("* OFFLINE SIMULATION STATUS *")
-        print("*****************************")
+        # print("*****************************")
+        # print("* OFFLINE SIMULATION STATUS *")
+        # print("*****************************")
 
         if full_status:
             for _dict, handle in zip([self.python_kwargs, self.condor_kwargs], ["python", "condor"]):
