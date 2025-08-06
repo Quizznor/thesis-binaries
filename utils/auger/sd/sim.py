@@ -109,17 +109,18 @@ class Simulation():
         self.condor_kwargs, self.python_kwargs = self._get_simulation_kwargs(primary, energy, model, kwargs)
         n_files = get_sim_files(self.python_kwargs["src"])
 
-        if self.python_kwargs["rethrows"] is None:
-            self.python_kwargs["rethrows"] = max(int(self.condor_kwargs['queue'] / n_files), 1)
-            desired_files = self.condor_kwargs['queue']
-            actual_files = n_files * self.python_kwargs['rethrows']
+        queue, rethrows = self.condor_kwargs["queue"], self.python_kwargs['rethrows']
 
-            if desired_files != actual_files:
-                self.logger.warning(f"You wanted {desired_files} simulations, I will produce {actual_files} simulations instead")
-            
-            self.condor_kwargs['queue'] = min(int(self.condor_kwargs['queue'] / self.python_kwargs['rethrows']), n_files)
+        if queue > n_files:
 
-        self.logger.info(f"Corsika {n_files = }, rethrows set to {self.python_kwargs['rethrows']}")
+            self.python_kwargs["rethrows"] = int(np.ceil(self.condor_kwargs['queue'] / n_files))
+            self.condor_kwargs["queue"] = int(self.condor_kwargs['queue'] / self.python_kwargs["rethrows"])
+
+        else:
+            self.python_kwargs["rethrows"] = 1
+
+        queue, rethrows = self.condor_kwargs["queue"], self.python_kwargs['rethrows']
+        self.logger.info(f"Corsika {n_files = }, {queue = }, {rethrows = } => {queue * rethrows} sims")
         
         self.work_path = self.path / f"work/{model}_{primary}_{energy}"
         self.work_path.mkdir(parents=True, exist_ok=True)

@@ -9,7 +9,7 @@ TUPLE_OR_ARRAY = Union[tuple, np.ndarray]
 
 class BackgroundStudy():
 
-    # don't forget to @numba.jit the callable
+    # don't forget to @numba.jit the callable to speed up your code
     def __init__(self, fctn: callable, high_rate_warning: bool = False):
 
         self.time_passed, self.triggers = 0, 0
@@ -26,9 +26,8 @@ class BackgroundStudy():
                     self.trigger_examples.append(event)
                     self.triggers += 1
             
-            if high_rate_warning:
-                rate = uncertainties.ufloat(self.triggers, np.sqrt(self.triggers)) / self.time_passed
-                if rate.n > 10: print(f"\n   !! HIGH Rate after {self.time_passed:.3f}s: ({rate}) Hz !!")
+            if high_rate_warning and (rate := self.triggers / self.time_passed) > 10:
+                print(f"\n   !! HIGH Rate after {self.time_passed:.3f}s: ({rate}) Hz !!")
 
     def __str__(self) -> str:
 
