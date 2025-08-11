@@ -89,6 +89,7 @@ def PixelPlot(
     norm=None,
     cmap=None,
     markpixels=[],
+    annotate=False,
     markcolor="red",
     **kwargs,
 ) -> plt.axes:
@@ -133,6 +134,10 @@ def PixelPlot(
         )
 
         ax.add_patch(hexagon)
+
+        if annotate:
+            ax.text(azimuth_angle, elevation_angle,
+            str(ipix), ha='center', va='center', fontsize=4)
 
     ax.set_xlim(-15.8, 15.8)
     ax.set_ylim(-15.8, 15.8)
