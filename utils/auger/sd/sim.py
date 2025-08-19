@@ -290,6 +290,16 @@ class Simulation():
         print(tabulate(table, headers=energy_bins))
 
 
+    def get_counts(self, model):
+        counts = {}
+        for primary in (self.path / f"dat/{model}").iterdir():
+            counts[primary.name] = {}
+            for energy in primary.iterdir():
+                counts[primary.name][energy.name] = len(list(energy.glob("*.root")))
+
+        return counts
+
+
     @classmethod
     def help(cls) -> None:
         
