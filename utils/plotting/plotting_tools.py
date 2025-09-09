@@ -297,3 +297,19 @@ def apply_datetime_format(ax: plt.Axes, which: str = "xaxis") -> None:
 
 def legend_outside_plot(ax: plt.Axes, **kwargs) -> None:
     ax.legend(bbox_to_anchor=(0, 1.02,1,0.2), loc="lower left", **kwargs)
+
+def add_colorbar(ticks, cmap=plt.cm.plasma, ax=None, **cbar_kwargs):
+
+    if ax is None: ax = plt.gca()
+    if isinstance(ax, plt.Axes):
+        fig = ax.get_figure()
+    else:
+        fig = ax[0].get_figure()
+
+    norm = BoundaryNorm(ticks, cmap.N)
+    cbar = fig.colorbar(ScalarMappable(norm=norm, cmap=cmap), 
+                                    ax=ax, **cbar_kwargs)
+    
+    cbar.set_ticks(ticks)
+
+    return cbar
