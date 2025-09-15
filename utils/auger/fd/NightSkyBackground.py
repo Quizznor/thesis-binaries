@@ -49,6 +49,7 @@ class CameraNSB():
 
     BASE = Path(f"/cr/tempdata01/filip/nsb_data/")
 
+    @cache
     def __init__(self, site: str, tel: int):
 
         IGNORE_SAMPLES_BELOW = 40
@@ -74,7 +75,7 @@ class CameraNSB():
         df["days_since_start"] = xt = df["datetime"].apply(lambda x: x.timestamp())
         df["days_since_start"] = (xt - xt.min()) / (24 * 3600)
 
-        if site == "Coihueco" and tel == 4:
+        if site == "Coihueco" and str(tel) == "4":
             df.rename(columns={"Baseline": "median_Baseline"}, inplace=True)
 
         df["night_sky_background"] = (df["median_Variance"] - df["median_Baseline"]) / 1e3
