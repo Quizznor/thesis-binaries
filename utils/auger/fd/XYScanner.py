@@ -346,8 +346,8 @@ class Campaign(XYRunContainer):
             "Heat": "#e1efaf"
         }
         plt.axvspan(0, 7, alpha=0.15, color=colors["LosLeones"], ec='none')
-        plt.axvspan(7, 14, alpha=0.15, color=colors["LomaAmarilla"], ec='none')
-        plt.axvspan(14, 21, alpha=0.15, color=colors["LosMorados"], ec='none')
+        plt.axvspan(7, 14, alpha=0.15, color=colors["LosMorados"], ec='none')
+        plt.axvspan(14, 21, alpha=0.15, color=colors["LomaAmarilla"], ec='none')
         plt.axvspan(21, 28, alpha=0.15, color=colors["Coihueco"], ec='none')
         plt.axvspan(28, 32, alpha=0.15, color=colors["Heat"], ec='none')
 
