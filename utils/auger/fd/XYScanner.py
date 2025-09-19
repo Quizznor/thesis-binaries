@@ -279,7 +279,7 @@ class Campaign(XYRunContainer):
             drift_label = fr"($+\frac{{ {1e2*cala_drift}\% }}{{ \mathrm{{year}} }}$)" if cala_drift else ""
             ax.set_ylabel(f'XY calib. const. / std. calib. {drift_label}')
             time_difference_years = (datetime(self.year, self.month, 1) - datetime(2010,6, 1)).days / 365
-            ax.fill_between([0,32], 1-0.099, 1+0.099, color='k', alpha=0.1, edgecolor='none')
+            # ax.fill_between([0,32], 1-0.099, 1+0.099, color='k', alpha=0.1, edgecolor='none')
         else:
             ax.set_ylabel(f'XY calib. const. / {kwargs.get("label", "custom norm")}')
 
@@ -295,8 +295,9 @@ class Campaign(XYRunContainer):
         
         ax.set_xticklabels([], fontsize=8, rotation=90)
         ax.set_xticks([], minor=True)
-        ax.grid(axis="y")
-        ax.grid(axis="y", which="minor", alpha=0.3)
+        # ax.grid(axis="y")
+        ax.axhline(1, ls='--', c='k')
+        ax.grid(axis="y", which="both", alpha=0.3)
         ax.set_xlim(0, 32)
 
         data, positions, labels = [], [], []
@@ -336,6 +337,19 @@ class Campaign(XYRunContainer):
 
         ymin, ymax = ax.get_ylim()
         ax.set_ylim(kwargs.get('ymin', ymin), kwargs.get('ymax', ymax))
+
+        colors = {
+            "LosLeones": "#3469ff",
+            "LosMorados": "#d13232",
+            "LomaAmarilla": "#ffff00",
+            "Coihueco": "#319c31",
+            "Heat": "#e1efaf"
+        }
+        plt.axvspan(0, 7, alpha=0.15, color=colors["LosLeones"], ec='none')
+        plt.axvspan(7, 14, alpha=0.15, color=colors["LomaAmarilla"], ec='none')
+        plt.axvspan(14, 21, alpha=0.15, color=colors["LosMorados"], ec='none')
+        plt.axvspan(21, 28, alpha=0.15, color=colors["Coihueco"], ec='none')
+        plt.axvspan(28, 32, alpha=0.15, color=colors["Heat"], ec='none')
 
         return fig
 

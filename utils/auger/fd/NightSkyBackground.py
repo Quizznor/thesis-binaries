@@ -91,7 +91,7 @@ class CameraNSB():
     def get_pixel(self, pixel, remove_outliers=True,
                   verbose=True) -> pd.DataFrame:
 
-        pixel_df = self.df[self.df["PixelId"] == pixel]
+        pixel_df = self.df[self.df["PixelId"] == pixel].copy()
 
         if remove_outliers:
             original_length = len(pixel_df)
@@ -130,7 +130,8 @@ class CameraNSB():
                                             width_ratios=[0.2, 0.8])
 
             data_max = np.nanmax(np.abs(percent_drift_per_year))
-            vmin, vmax = np.floor(-data_max), np.ceil(data_max)
+            vmin = np.max([-6, np.floor(-data_max).astype(int)])
+            vmax = np.min([6, np.ceil(data_max).astype(int)])
 
             ax2 = PixelPlot(percent_drift_per_year, vmin=vmin, 
                             vmax=vmax,cmap=plt.cm.coolwarm, ax=ax2,
@@ -245,7 +246,7 @@ class PixelNSB():
     def get_jumps(self, n_bkps=1, col="night_sky_background") -> list:
 
         algo = rpt.Binseg(model="l1").fit(self.df[col].values)
-        return algo.predict(n_bkps=n_bkps)
+        return algo.predict(n_bkps=n_bkps)[:-1]
 
     
     def periodogram(self, show=False) -> Periodogram:
