@@ -152,7 +152,7 @@ class Simulation():
             sh.write("#!/bin/bash\n")
             sh.write(f"\nsource {self.offline_src}\n")
             sh.write(f"cd {self.path}/src/\n")
-            sh.write(f"timeout 1h ./userAugerOffline --bootstrap $1\n")
+            sh.write(f"timeout 30m ./userAugerOffline --bootstrap $1\n")
             sh.write("rm -rf *.root *.dat $1")
         sh_path.chmod(sh_path.stat().st_mode | stat.S_IEXEC)
 

@@ -112,6 +112,10 @@ class CameraNSB():
                 continue
 
             pixel = self.get_pixel(pix, verbose=False)
+            if not len(pixel.df):
+                percent_drift_per_year[pix-1] = np.nan
+                continue
+
             xt = pixel.df["days_since_start"].values
             y = pixel.df["night_sky_background"].values
 
