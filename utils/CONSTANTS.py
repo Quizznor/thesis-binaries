@@ -60,7 +60,7 @@ class UUB:
         [8 * k for k in range(400)] + [3200 + 32 * k for k in range(201)]
     )
     WCD_PEAK: np.ndarray = 0.5 * (WCD_PEAK_EDGES[1:] + WCD_PEAK_EDGES[:-1])
-    UUB_WCD_CHARGE: np.ndarray = 0.5 * (
+    WCD_CHARGE: np.ndarray = 0.5 * (
         WCD_CHARGE_EDGES[1:] + WCD_CHARGE_EDGES[:-1]
     )
 

@@ -4,6 +4,7 @@ from ... import logging, create_stream_logger
 from itertools import product
 from ...binaries import np
 from ... import CONSTANTS
+from pathlib import Path
 import uproot
 import typing
 import glob

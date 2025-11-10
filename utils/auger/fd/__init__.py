@@ -137,7 +137,7 @@ def PixelPlot(
 
         if annotate:
             ax.text(azimuth_angle, elevation_angle,
-            str(ipix), ha='center', va='center', fontsize=4)
+            str(ipix), ha='center', va='center', fontsize=kwargs.get('fontsize', 4))
 
     ax.set_xlim(-15.8, 15.8)
     ax.set_ylim(-15.8, 15.8)

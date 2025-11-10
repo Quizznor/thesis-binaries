@@ -53,7 +53,7 @@ class CameraNSB():
     def __init__(self, site: str, tel: int):
 
         IGNORE_SAMPLES_BELOW = 40
-        df, n = None, 0
+        dfs, n = [], 0
 
         self.source_dir = self.BASE / f"{site}{tel}"
         for file in self.source_dir.iterdir():
@@ -61,22 +61,23 @@ class CameraNSB():
             
             df_part = tools.pickle_load(file)
             df_part = df_part[df_part["Samples"] >= IGNORE_SAMPLES_BELOW]
-            df_part = df_part.dropna()
-
-            if df is None:
-                df = df_part
-            else:
-                df = pd.concat([df, df_part], ignore_index=True)
+            dfs.append(df_part.dropna())
 
             n += 1
 
+        df = pd.concat(dfs, ignore_index=True)
         df["Date"] = pd.to_datetime(df["Date"])
-        df.rename(columns={"Date": "datetime"}, inplace=True)
+
+        df = df.rename(columns={"Date": "datetime"}).sort_values("datetime")
         df["days_since_start"] = xt = df["datetime"].apply(lambda x: x.timestamp())
         df["days_since_start"] = (xt - xt.min()) / (24 * 3600)
 
         if site == "Coihueco" and str(tel) == "4":
             df.rename(columns={"Baseline": "median_Baseline"}, inplace=True)
+        elif site == "LosLeones" and str(tel) == "1":
+            df.loc[df['PixelId'] > 352, ["median_Baseline", "median_Variance"]] = np.nan
+        elif site == "LosLeones" and str(tel) == "6":
+            df.loc[df['PixelId'] < 177, ["median_Baseline", "median_Variance"]] = np.nan
 
         df["night_sky_background"] = (df["median_Variance"] - df["median_Baseline"]) / 1e3
 
@@ -103,7 +104,7 @@ class CameraNSB():
         return PixelNSB(pixel, self.site, self.tel, pixel_df)
    
 
-    def camera_drift(self, show=True, ignore_pixels=[]) -> np.ndarray:
+    def camera_drift(self, show=True, axis="night_sky_background", ignore_pixels=[], **kwargs) -> np.ndarray:
 
         percent_drift_per_year = np.zeros(440)
         for pix in tqdm(range(1, 441)):
@@ -117,7 +118,7 @@ class CameraNSB():
                 continue
 
             xt = pixel.df["days_since_start"].values
-            y = pixel.df["night_sky_background"].values
+            y = pixel.df[axis].values
 
             popt = np.polyfit(xt, y, deg=1)
             f = np.poly1d(popt)
@@ -134,8 +135,8 @@ class CameraNSB():
                                             width_ratios=[0.2, 0.8])
 
             data_max = np.nanmax(np.abs(percent_drift_per_year))
-            vmin = np.max([-6, np.floor(-data_max).astype(int)])
-            vmax = np.min([6, np.ceil(data_max).astype(int)])
+            vmin = kwargs.get('vmin', np.max([-6, np.floor(-data_max).astype(int)]))
+            vmax = kwargs.get('vmax', np.min([6, np.ceil(data_max).astype(int)]))
 
             ax2 = PixelPlot(percent_drift_per_year, vmin=vmin, 
                             vmax=vmax,cmap=plt.cm.coolwarm, ax=ax2,
@@ -150,48 +151,75 @@ class CameraNSB():
             cbar.set_ticks(ticks=ticks, labels=[f"${x:+.0f}$" for x in ticks])
             ax2.set_title(f"{self.site} - Mirror {self.tel}")
 
+            X = np.linspace(vmin, vmax, 1000)
             centerRow = 35 / 3.0
-            elevation, rows = [], []
             for row in range(22):
 
-                elevation.append((row - centerRow + 1) * 1.5 * np.sqrt(3) / 2)
                 this_row = get_row(row)
-                rows.append(this_row[~np.isnan(this_row)])
+                elevation = (row - centerRow + 1) * 1.5 * np.sqrt(3) / 2
+                kde = elevation - tools.kd1d_estimate(this_row[~np.isnan(this_row)], bandwidth = (vmax-vmin)/70)(X)
+                mean = np.nanmean(this_row)
 
-            ax1.boxplot(rows, positions=elevation, vert=False,
-                        showfliers=False, notch=True, widths=0.8)
+                ax1.plot(X, kde, marker='none', c='k', lw=0.5, ls='-')
+                ax1.fill_between(X, elevation+0.14, kde, lw=0, ec='none',
+                                 color=plt.cm.coolwarm((mean - vmin)/(vmax-vmin)))
+                ax1.text(0.98*vmax, elevation-0.24, fr"${mean:.2f}\,\%\,/\,\mathrm{{yr}}$",
+                         ha='right', fontsize=4)
+
             ax1.set_yticks([])
+            ax1.set_xlim(vmin, vmax)
             ax1.axvline(0, ls='--', c='k', lw=0.5)
         
-            plt.subplots_adjust(wspace=0)
+            plt.subplots_adjust(wspace=-0.3)
 
-        return percent_drift_per_year       
+        return percent_drift_per_year
 
 
     def add_shift_information(self) -> None:
         try:
             dates = iter(self.df.groupby(self.df["datetime"].dt.date))
             self.df["shift_day"] = 1
+            self.df["shift_number"] = 1
             old, _ = next(dates)
-            increment = 1
+            shift_number, shift_day = 1, 1
 
             while True:
                 new, df = next(dates)
                 days_diff = (new - old).days
 
                 if days_diff == 1:
-                    increment += 1
+                    shift_day += 1
 
                 elif days_diff < 5:
-                    increment += days_diff
+                    shift_day += days_diff
 
                 else:
-                    increment = 1
+                    shift_day = 1
+                    shift_number += 1
 
-                self.df.loc[df.index, "shift_day"] = increment
+                self.df.loc[df.index, "shift_day"] = shift_day
+                self.df.loc[df.index, "shift_number"] = shift_number
                 old = new
 
         except StopIteration: pass
+
+
+    def add_cal_a_information(self):
+
+        abbrev = {
+            "LosLeones": "LL",
+            "LosMorados": "LM",
+            "LomaAmarilla": "LA",
+            "Coihueco": "CO",
+            "Heat": "HE",
+        }
+
+        cal_a = tools.pickle_load(f"/cr/tempdata01/filip/cal_a_2010_2024/{abbrev[self.site]}{self.tel}.pkl")
+        self.df['Date'] = self.df['datetime'].dt.date
+        self.df = pd.merge(self.df, cal_a, on=['Date', 'PixelId'], how="inner")
+        self.df.drop(columns=["Date"], inplace=True)
+        self.df = self.df[self.df["CalibConstant"] < 1000]
+
 
 class PixelNSB():
 
@@ -217,7 +245,7 @@ class PixelNSB():
 
         x = self.df["datetime"]
         xt = self.df["days_since_start"]
-        y = self.df["night_sky_background"]
+        y = self.df[kwargs.get("axis", "night_sky_background")]
         
         ax.scatter(x, y, 
                     alpha=opacity, 

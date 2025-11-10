@@ -256,6 +256,7 @@ def preliminary(ax: plt.Axes = None, text: str = "Preliminary", fontsize: float 
         text,
         c="red",
         rotation=15,
+        transform=ax.transAxes,
         horizontalalignment="center",
         verticalalignment="center",
         fontsize=fontsize,
