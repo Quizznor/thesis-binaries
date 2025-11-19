@@ -1,6 +1,6 @@
 from ...binaries import np
 
-def filter_and_downsample(*traces: np.ndarray, random_phase: int = 1) -> list:
+def filter_and_downsample(*traces: np.ndarray, random_phase: int = 1) -> np.array:
     """convert UUB trace to UB equivalent, for compatibility mode"""
 
     filtered_and_downsampled_traces = []
@@ -53,30 +53,22 @@ def filter_and_downsample(*traces: np.ndarray, random_phase: int = 1) -> list:
         trace = trace[random_phase::3]
         filtered_and_downsampled_traces.append(np.array(trace, dtype="u2"))
 
-    return filtered_and_downsampled_traces
+    return np.array(filtered_and_downsampled_traces)
 
+def T2_th(wcd_traces: np.ndarray, threshold: float = 3.2) -> bool:
+    """T2 threshold trigger for the WCD pmts"""
+    return (wcd_traces > threshold).all(axis=1).any()
 
-def threshold_trigger(
-    traces: np.ndarray, threshold: float, latch_bin: bool = False
-) -> bool:
-    pmt1, pmt2, pmt3 = traces
+def T2_tot(wcd_traces: np.ndarray, 
+           threshold: float = 0.2, 
+           occupancy: int = 12,
+           multiplicity: int = 2,
+           window_size: int = 120) -> bool:
+    """T2 time over threshold trigger for the WCD pmts"""
 
-    assert (
-        (trace_length := len(pmt1)) == len(pmt2) == len(pmt3)
-    ), "Unrealistic time trace"
+    counts = np.cumsum(wcd_traces > threshold, axis=1)
+    running_counts = counts[:, window_size-1:] - counts[:, :-120+1]
+    window_occupancy = np.sum(running_counts > multiplicity, axis=0)
 
-    for _b in range(trace_length):
-        if pmt1[_b] >= threshold:
-            if pmt2[_b] >= threshold:
-                if pmt3[_b] >= threshold:
-                    return _b if latch_bin else True
+    return (window_occupancy > occupancy).any()
 
-    return -1 if latch_bin else False
-
-
-def wcd_t1_trigger(traces: np.ndarray, latch_bin: bool = False) -> bool:
-    return threshold_trigger(traces, threshold=1.75, latch_bin=latch_bin)
-
-
-def wcd_t2_trigger(traces: np.ndarray, latch_bin: bool = False) -> bool:
-    return threshold_trigger(traces, threshold=3.2, latch_bin=latch_bin)
