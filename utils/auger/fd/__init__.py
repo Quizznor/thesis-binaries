@@ -5,6 +5,7 @@ from matplotlib.colors import Normalize
 from matplotlib.gridspec import GridSpec
 from matplotlib.cm import ScalarMappable
 
+__all__ = ["AperturePlot", "PixelPlot", "XYScanner"]
 
 def AperturePlot(ax=None, filterStructure=True) -> plt.axes:
     """Add aperture, corrector, lens structure of FD telescopes to a given axis"""
