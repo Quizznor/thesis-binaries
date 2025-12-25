@@ -447,13 +447,19 @@ class Station():
         self.spd = station_data['spd']
         self.is_tot = station_data['is_tot']
 
-        self.wcd = np.zeros((3, 2048))
-        self.ssd = np.zeros(2048)
+        self.wcd_raw, self.wcd = np.zeros((2, 3, 2048))
+        self.ssd_raw, self.ssd = np.zeros((2, 2048))
+        self.vem = [trace['peak'] for trace in station_data['traces']]
+        self.mip = self.vem.pop()
 
         for i, trace in enumerate(station_data['traces']):
             calibrated_trace = np.floor(trace['trace'] - trace['base'] ) / trace['peak']
-            if i < 3: self.wcd[i, :] = calibrated_trace
-            else: self.ssd = calibrated_trace
+            if i < 3: 
+                self.wcd_raw[i, :] = np.floor(trace['trace'] - trace['base'] + 0.5)
+                self.wcd[i, :] = calibrated_trace
+            else: 
+                self.ssd_raw = np.floor(trace['trace'] - trace['base'] + 0.5)
+                self.ssd = calibrated_trace
 
     
     def __repr__(self) -> str:

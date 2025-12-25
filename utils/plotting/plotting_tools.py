@@ -200,8 +200,11 @@ def performance_plot(
     plt.legend()
 
 
-def shaded_hist(data: Any, cmap: str, **kwargs) -> Normalize:
+def shaded_hist(data: Any, ax: None, cmap: str, **kwargs) -> Normalize:
     """wrapper for the standard plt.hist, which plots the individual bins in a cmap depending on the x-value"""
+
+    vmin = kwargs.get("vmin", np.min(data))
+    vmax = kwargs.get("vmax", np.max(data))
 
     def get_outline_kwargs(kwargs) -> dict:
         outline_kwargs = {
@@ -210,21 +213,33 @@ def shaded_hist(data: Any, cmap: str, **kwargs) -> Normalize:
             "lw": kwargs.get("lw", 1),
             "bins": kwargs.get("bins", None),
             "histtype": "step",
+            "density": kwargs.get("density", True),
+            "range": (vmin, vmax),
         }
 
         return outline_kwargs
 
+    def get_shade_kwargs(kwargs) -> dict:
+        shade_kwargs = {
+            "bins": kwargs.get("bins", None),
+            "density": kwargs.get("density", True),
+            "range": (vmin, vmax),
+        }
+
+        return shade_kwargs
+
+
+    if ax is None:
+        ax = plt.gca()
+
     # outline
-    _, bins, _ = (kwargs.get("ax", plt.gca())).hist(data, **get_outline_kwargs(kwargs))
+    _, bins, _ = ax.hist(data, **get_outline_kwargs(kwargs))
 
     # shade
     cmap = plt.get_cmap(cmap)
 
     norm = kwargs.get("norm", "linear")
     if isinstance(norm, str):
-
-        vmin = kwargs.get("vmin", np.min(data))
-        vmax = kwargs.get("vmax", np.max(data))
 
         if norm == "linear":
             norm = Normalize(vmin, vmax, clip=False)
@@ -235,8 +250,8 @@ def shaded_hist(data: Any, cmap: str, **kwargs) -> Normalize:
         else:
             raise NameError(f"{norm=} is not a supported option")
 
+    _, bins, patches = ax.hist(data, **get_shade_kwargs(kwargs))
     bin_centers = 0.5 * (bins[1:] + bins[:-1])
-    _, _, patches = (kwargs.get("ax", plt.gca())).hist(data, bins=bins)
     for x, b in zip(bin_centers, patches):
         plt.setp(b, "facecolor", cmap(norm(x)))
 

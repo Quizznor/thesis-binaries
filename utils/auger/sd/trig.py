@@ -1,64 +1,80 @@
 from ...binaries import np
+from numba import njit
 
-def filter_and_downsample(*traces: np.ndarray, random_phase: int = 1) -> np.array:
-    """convert UUB trace to UB equivalent, for compatibility mode"""
+def filter_and_downsample(pmts: np.ndarray, random_phase=0) -> np.ndarray:
 
-    filtered_and_downsampled_traces = []
+    if len(pmts) == 2048:
+        return filter_and_downsample_pmt(pmts)
+    else:
+        filtered_and_downsampled = np.empty(shape=(len(pmts), 683))
+        for i, pmt in enumerate(pmts):
+            filtered_and_downsampled[i, ] = filter_and_downsample_pmt(pmt)
 
-    # see Framework/SDetector/UUBDownsampleFilter.h in Offline main branch for more information
-    kFirCoefficients = np.array(
-        [
-            5,
-            0,
-            12,
-            22,
-            0,
-            -61,
-            -96,
-            0,
-            256,
-            551,
-            681,
-            551,
-            256,
-            0,
-            -96,
-            -61,
-            0,
-            22,
-            12,
-            0,
-            5,
-        ]
-    )
-    buffer_length = int(0.5 * len(kFirCoefficients))
+        return filtered_and_downsampled
+
+@njit
+def filter_and_downsample_pmt(pmt: np.ndarray, random_phase=0) -> np.ndarray:
+    """Convert UUB trace to UB compatibility trace"""
+
+    BINS = 2048
+
+    kFirCoefficients = np.array([
+        5, 0, 12, 22, 0, -61, -96,
+        0, 256, 551, 681, 551, 256, 0,
+        -96, -61, 0, 22, 12, 0, 5,
+    ], dtype=np.int32)
+
+    kFirLen = kFirCoefficients.size
+    buffer_length = kFirLen // 2
     kFirNormalizationBitShift = 11
     kADCSaturation = 4095
-    kFirLen = len(kFirCoefficients)
 
-    for pmt in traces:
-        temp = np.zeros(len(pmt) + len(kFirCoefficients), dtype=int)
-        temp[0:buffer_length] = pmt[::-1][-buffer_length - 1 : -1]
-        temp[-buffer_length - 1 : -1] = pmt[::-1][0:buffer_length]
-        temp[buffer_length : -buffer_length - 1] = pmt
+    temp = np.zeros(BINS + kFirLen, dtype=np.uint16)
 
-        temp_shifted = np.array([temp[k : k + len(pmt)] for k in range(kFirLen)])
-        outer_product = temp_shifted * kFirCoefficients[:, np.newaxis]
+    pmt_rev = pmt[::-1].copy()
 
-        trace = np.sum(outer_product, axis=0)
-        trace = np.clip(
-            np.right_shift(trace, kFirNormalizationBitShift), 0, kADCSaturation
-        )
+    for i in range(buffer_length):
+        temp[i] = pmt_rev[buffer_length - i]
 
-        trace = trace[random_phase::3]
-        filtered_and_downsampled_traces.append(np.array(trace, dtype="u2"))
+    for i in range(buffer_length):
+        temp[BINS + kFirLen - 1 - buffer_length + i] = pmt_rev[i]
 
-    return np.array(filtered_and_downsampled_traces)
+    for i in range(BINS):
+        temp[buffer_length + i] = pmt[i]
 
+    temp_shifted = np.zeros((kFirLen, BINS), dtype=np.int32)
+
+    for k in range(kFirLen):
+        for j in range(BINS):
+            temp_shifted[k, j] = temp[k + j]
+
+    for k in range(kFirLen):
+        coef = kFirCoefficients[k]
+        for j in range(BINS):
+            temp_shifted[k, j] *= coef
+            
+    acc = np.zeros(BINS, dtype=np.int32)
+    for k in range(kFirLen):
+        for j in range(BINS):
+            acc[j] += temp_shifted[k, j]
+
+    out = np.zeros(BINS, dtype=np.uint16)
+    for j in range(BINS):
+        val = acc[j] >> kFirNormalizationBitShift
+        if val < 0:
+            val = 0
+        elif val > kADCSaturation:
+            val = kADCSaturation
+        out[j] = val
+
+    return out[random_phase::3]
+
+@njit
 def T2_th(wcd_traces: np.ndarray, threshold: float = 3.2) -> bool:
     """T2 threshold trigger for the WCD pmts"""
     return (wcd_traces > threshold).all(axis=1).any()
 
+@njit
 def T2_tot(wcd_traces: np.ndarray, 
            threshold: float = 0.2, 
            occupancy: int = 12,

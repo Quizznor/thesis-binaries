@@ -91,6 +91,8 @@ class XYRun():
                 
             except FileNotFoundError:
                 warn(f"{self.telescope} @ {self.year_month_day}: {run} ({run_id}) not found")
+            except ValueError:
+                warn(f"{self.telescope} @ {self.year_month_day}: {run} ({run_id}) data corrupted")
 
     
     def __repr__(self) -> str:
