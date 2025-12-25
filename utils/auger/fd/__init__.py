@@ -5,6 +5,7 @@ from matplotlib.colors import Normalize
 from matplotlib.gridspec import GridSpec
 from matplotlib.cm import ScalarMappable
 
+__all__ = ["AperturePlot", "PixelPlot", "XYScanner"]
 
 def AperturePlot(ax=None, filterStructure=True) -> plt.axes:
     """Add aperture, corrector, lens structure of FD telescopes to a given axis"""
@@ -89,6 +90,7 @@ def PixelPlot(
     norm=None,
     cmap=None,
     markpixels=[],
+    annotate=False,
     markcolor="red",
     **kwargs,
 ) -> plt.axes:
@@ -128,11 +130,15 @@ def PixelPlot(
             orientation=np.radians(60),
             facecolor=cmap(norm(pixel)),
             edgecolor=markcolor if ipix in markpixels else "k",
-            lw=kwargs.get("lw", 1),
+            lw=kwargs.get("marklw", 1) if ipix in markpixels else kwargs.get("lw", 1),
             zorder=2 if ipix in markpixels else 1,
         )
 
         ax.add_patch(hexagon)
+
+        if annotate:
+            ax.text(azimuth_angle, elevation_angle,
+            str(ipix), ha='center', va='center', fontsize=kwargs.get('fontsize', 4))
 
     ax.set_xlim(-15.8, 15.8)
     ax.set_ylim(-15.8, 15.8)

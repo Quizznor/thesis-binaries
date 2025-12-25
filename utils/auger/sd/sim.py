@@ -15,15 +15,51 @@ condor_default_dict = {
             'max_idle': "150",              # don't insert jobs if n_jobs_idle is more than this
             'request_memory': "1G",         # put job on hold if RAM exceeds request_memory
             'max_materialize': "150",       # number of total active/running/idle jobs on condor
-            'should_transfer_files': "YES"  # needed to transfer output root file to /cr/work
-
+            'should_transfer_files': "YES", # needed to transfer output root file to /cr/work
+            'queue' : 5000                  # number of simulations to run in condor
             # cpu, gpu etc.
         }
 
 python_default_dict = {
-    'rethrows': 1,                          # how many times shower is simulated (with different seed)
+    'rethrows': None,                       # how many times shower is simulated (with different seed)
     'n_particles': 30_000,                  # decrease number for quick and dirty test simulation
+    'seed': 0                               # seed(s) used for simulation ( = range(seed, seed+rethrows) )
 }
+
+def get_sim_files(target_path):
+
+    n_files_dictionary = {
+        "proton" : {
+        "16_16.5" : 5000, 
+        "16.6_17" : 5000, 
+        "17_17.5" : 5000, 
+        "17.5_18" : 5000, 
+        "18_18.5" : 3035, 
+        }, 
+        "photon" : {
+        "16_16.5" : 1250, 
+        "16.5_17" : 2499, 
+        "17_17.5" : 1250, 
+        "17.5_18" : 5000, 
+        "18_18.5" : 5000, 
+        }
+    }
+
+    primary, energy = str(target_path).split('/')[-2:]
+
+    try:
+        n_files = n_files_dictionary[primary][energy]
+    except KeyError:
+        
+        is_sim_file = (lambda s: s.startswith("DAT")
+                           and not s.endswith(".long")
+                           and not s.endswith(".lst")
+                           and not s.endswith(".gz"))
+        
+        n_files = len(list(filter(is_sim_file, os.listdir(target_path))))
+
+    return n_files
+
 
 class Simulation():
 
@@ -69,11 +105,23 @@ class Simulation():
 
         self.logger.info("filesystem established successfully")
         
-        
         # set condor/python kwargs
-        self.condor_kwargs, self.python_kwargs, queue = self._get_simulation_kwargs(primary, energy, model, kwargs)
-        self.logger.info(f"Corsika dir found, {queue} files available")
+        self.condor_kwargs, self.python_kwargs = self._get_simulation_kwargs(primary, energy, model, kwargs)
+        n_files = get_sim_files(self.python_kwargs["src"])
 
+        queue, rethrows = self.condor_kwargs["queue"], self.python_kwargs['rethrows']
+
+        if queue > n_files:
+
+            self.python_kwargs["rethrows"] = int(np.ceil(self.condor_kwargs['queue'] / n_files))
+            self.condor_kwargs["queue"] = int(self.condor_kwargs['queue'] / self.python_kwargs["rethrows"])
+
+        else:
+            self.python_kwargs["rethrows"] = 1
+
+        queue, rethrows = self.condor_kwargs["queue"], self.python_kwargs['rethrows']
+        self.logger.info(f"Corsika {n_files = }, {queue = }, {rethrows = } => {queue * rethrows} sims")
+        
         self.work_path = self.path / f"work/{model}_{primary}_{energy}"
         self.work_path.mkdir(parents=True, exist_ok=True)
 
@@ -93,15 +141,18 @@ class Simulation():
             sub.write(CONSTANTS.WORD.SIM_REQS)
             sub.write("\n\n")
             for key, value in self.condor_kwargs.items():
+                if key == "queue": continue
                 sub.write(f"{key: <24}= {value}\n")
-            sub.write(f'\nqueue {queue}')
+                
+            sub.write(f'\nqueue {self.condor_kwargs["queue"]}')
 
         # make run.sh file
         sh_path = self.work_path / "run.sh"
         with sh_path.open("w", encoding="utf-8") as sh:
             sh.write("#!/bin/bash\n")
             sh.write(f"\nsource {self.offline_src}\n")
-            sh.write(f"cd {self.path}/src/ && ./userAugerOffline --bootstrap $1\n")
+            sh.write(f"cd {self.path}/src/\n")
+            sh.write(f"timeout 30m ./userAugerOffline --bootstrap $1\n")
             sh.write("rm -rf *.root *.dat $1")
         sh_path.chmod(sh_path.stat().st_mode | stat.S_IEXEC)
 
@@ -113,6 +164,7 @@ class Simulation():
             py.write(f"SRC = \"{self.python_kwargs['src']}\"\n")
             py.write(f"OUT = \"{self.python_kwargs['out']}\"\n")
             py.write(f"RETHROWS = {self.python_kwargs['rethrows']}\n")
+            py.write(f"SEED = {self.python_kwargs['seed']}\n")
             py.write(f"n = {self.python_kwargs['n_particles']}\n")
             py.write(CONSTANTS.WORD.RUN_PY_FOOTER)
         py_path.chmod(py_path.stat().st_mode | stat.S_IEXEC)
@@ -130,15 +182,12 @@ class Simulation():
         ]), shell=True, executable='/bin/bash', stdout=subprocess.DEVNULL)
 
         self.logger.info("source compiled, we're done!")
-        self.status(full_status=True)
+
+        if kwargs.get("verbose", True):
+            self.status(full_status=True)
 
 
     def _get_simulation_kwargs(self, primary: str, energy: str, model: str, kwargs: dict) -> dict:
-
-            is_sim_file = (lambda s: s.startswith("DAT")
-                           and not s.endswith(".long")
-                           and not s.endswith(".lst")
-                           and not s.endswith(".gz"))
 
             condor_kwargs = self._get_condor_kwargs(primary, energy, model, kwargs)
 
@@ -148,7 +197,8 @@ class Simulation():
             if min_energy <= 18.5:
                 library = "prague"
             else: library = "napoli"
-            target_path /= f"{library}/{model.upper()}/{primary.lower()}/{energy}"
+            target_path /= f"{library}"
+            target_path /= f"{model.upper()}/{primary.lower()}/{energy}"
 
             if not os.path.isdir(target_path):
                 raise LookupError(f"Data dir not found for keys {model}, {primary}, {energy}")
@@ -162,7 +212,7 @@ class Simulation():
                 if python_default_dict.get(key, None) is not None:
                     python_kwargs[key] = val           
 
-            return condor_kwargs, python_kwargs, len(list(filter(is_sim_file, os.listdir(target_path))))
+            return condor_kwargs, python_kwargs
     
 
     def _get_condor_kwargs(self, primary, energy, model, kwargs) -> dict:
@@ -192,6 +242,10 @@ class Simulation():
         if dat: raise NotImplementedError; os.system(f"rm -rf {self.path / 'dat/*'}")
 
 
+    def send_to_condor(self) -> int:
+        return subprocess.run([f"cd {self.work_path}; condor_submit condor.sub"], shell=True)
+
+
     def run(self, proc_no: int) -> int:
         return subprocess.run([f"cd {self.work_path}; ./run.py {proc_no}"], shell=True)
 
@@ -203,9 +257,9 @@ class Simulation():
     def status(self, full_status: bool = False) -> None:
 
         print("")
-        print("*****************************")
-        print("* OFFLINE SIMULATION STATUS *")
-        print("*****************************")
+        # print("*****************************")
+        # print("* OFFLINE SIMULATION STATUS *")
+        # print("*****************************")
 
         if full_status:
             for _dict, handle in zip([self.python_kwargs, self.condor_kwargs], ["python", "condor"]):
@@ -237,6 +291,16 @@ class Simulation():
         print(tabulate(table, headers=energy_bins))
 
 
+    def get_counts(self, model):
+        counts = {}
+        for primary in (self.path / f"dat/{model}").iterdir():
+            counts[primary.name] = {}
+            for energy in primary.iterdir():
+                counts[primary.name][energy.name] = len(list(energy.glob("*.root")))
+
+        return counts
+
+
     @classmethod
     def help(cls) -> None:
         
@@ -262,6 +326,19 @@ class Simulation():
 
 class SimData():
 
+    body = np.dtype([
+        ("id", np.uintc),
+        ("spd", np.double),
+        ("is_tot", bool),
+        ("traces", (
+            np.dtype([
+                ("pmt_id", np.short),
+                ('peak', np.float32),
+                ('base', np.float32),
+                ('trace', (np.short, 2048))
+            ]), 4))
+    ])
+
     def __init__(self, name: str, model: str, primary: str) -> None:
 
         self.name = name
@@ -272,7 +349,7 @@ class SimData():
         self.files = []
         for energy in os.listdir(path):
             files = os.listdir(path / energy)
-            is_candidate = lambda p: p.endswith("csv")
+            is_candidate = lambda p: not p.endswith("root")
             self.files += [path / f"{energy}/{f}" for f in filter(is_candidate, files)]
 
     
@@ -284,26 +361,60 @@ class SimData():
 
         iteration_index = 0
         while iteration_index < len(self):
-            yield Shower(np.loadtxt(self.files[iteration_index]))
+            # energy, zenith = np.fromfile(self.files[iteration_index], dtype=np.double, count=2)
+            # yield Shower(energy, zenith, np.fromfile(self.files[iteration_index], dtype=self.body, offset=16))
+            yield Shower(self.files[iteration_index])
             iteration_index += 1
           
         return StopIteration
 
 
+    def trigger(self, fctn: callable, 
+                 e_bins: list = None, 
+                 t_bins: list = None,
+                 spd_bins: list = None) -> tuple[np.ndarray]:
+
+        e_bins = np.arange(16, 18.6, 0.5) if e_bins is None else e_bins
+        t_bins = np.arcsin(np.sqrt(np.arange(0, 1.1, 0.2))) * 180/np.pi if t_bins is None else t_bins
+        spd_bins = np.arange(75, 2001, 75) if spd_bins is None else spd_bins
+
+        hit = np.zeros(shape=(len(e_bins)-1, len(t_bins)-1, len(spd_bins)-1))
+        all = np.zeros(shape=(len(e_bins)-1, len(t_bins)-1, len(spd_bins)-1))
+
+        for shower in tools.ProgressBar(self):
+            e_idx = np.digitize(np.log10(shower.energy), e_bins) - 1
+            t_idx = np.digitize(shower.zenith, t_bins) - 1
+
+            for i, (_, trig) in enumerate(zip(*shower.trigger(fctn))):
+                spd_idx = np.digitize(shower[i].spd, spd_bins) - 1
+
+                try:
+                    if trig: hit[e_idx, t_idx, spd_idx] += 1
+                    all[e_idx, t_idx, spd_idx] += 1
+                except IndexError: continue
+        
+        return e_bins, t_bins, spd_bins, hit, all
+
+
+    def apply(self, fctn: callable) -> Iterator:
+        for file in self.files:
+            yield fctn(file)
+
+
 class Shower():
 
-    def __init__(self, event_data: list[np.ndarray]) -> None:
+    # def __init__(self, energy, zenith, station_data: np.ndarray) -> None:
+    def __init__(self, file_path: Path) -> None:
 
-        energy = set(event_data[:, 0])
-        zenith = set(event_data[:, 1])
-        assert len(energy) == len(zenith) == 1, "Malformed shower data"
+        self.energy, self.zenith = np.fromfile(file_path, 
+                                               dtype=np.double, 
+                                               count=2)
 
-        self.energy = energy.pop()
-        self.zenith = zenith.pop()
+        self.id = file_path
         self.stations = []
-
-        for station_data in np.split(event_data[:, 2:], len(event_data) // 4):
-            self.stations.append(Station(station_data))
+        
+        for s in np.fromfile(file_path, dtype=SimData.body, offset=16):
+            self.stations.append(Station(s))
 
     
     def __repr__(self) -> str:
@@ -313,7 +424,13 @@ class Shower():
     def __getitem__(self, idx: int) -> "Station":
         return self.stations[idx]
 
-    
+
+    def get_station(self, idx: int) -> "Station":
+        for station in self.stations:
+            if station.id != idx:continue
+            return station
+
+
     def trigger(self, fctn: callable) -> list[bool]:
         stations, triggers = [], []
         for station in self:
@@ -326,15 +443,23 @@ class Shower():
 class Station():
 
     def __init__(self, station_data) -> None:
-        ids = set(station_data[:, 0])
-        spd = set(station_data[:, 1])
-        assert len(ids) == len(spd) == 1, "Malformed station data"
+        self.id = station_data['id']
+        self.spd = station_data['spd']
+        self.is_tot = station_data['is_tot']
 
-        self.id = int(ids.pop())
-        self.spd = spd.pop()
+        self.wcd_raw, self.wcd = np.zeros((2, 3, 2048))
+        self.ssd_raw, self.ssd = np.zeros((2, 2048))
+        self.vem = [trace['peak'] for trace in station_data['traces']]
+        self.mip = self.vem.pop()
 
-        self.wcd = station_data[:-1, 2:]
-        self.ssd = station_data[-1, 2:]
+        for i, trace in enumerate(station_data['traces']):
+            calibrated_trace = np.floor(trace['trace'] - trace['base'] ) / trace['peak']
+            if i < 3: 
+                self.wcd_raw[i, :] = np.floor(trace['trace'] - trace['base'] + 0.5)
+                self.wcd[i, :] = calibrated_trace
+            else: 
+                self.ssd_raw = np.floor(trace['trace'] - trace['base'] + 0.5)
+                self.ssd = calibrated_trace
 
     
     def __repr__(self) -> str:

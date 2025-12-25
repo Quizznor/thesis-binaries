@@ -4,6 +4,7 @@ from ... import logging, create_stream_logger
 from itertools import product
 from ...binaries import np
 from ... import CONSTANTS
+from pathlib import Path
 import uproot
 import typing
 import glob
@@ -101,7 +102,14 @@ class Monit:
                 else:
                     self._keys[key] = {}
 
+        self.__stations = set()
+        for stream in self.__streams:
+            [self.__stations.add(station) for station in np.unique(stream["fLsId"].array())]
+        self.__stations = {int(station) for station in self.__stations}
+            
         self.logger.info(f"View monit keys with self.keys()")
+        self.logger.info(f"View station keys with self.stations()")
+
 
     def __getitem__(self, item) -> typing.Union[dict, str]:
         return self.get_key(item) or self._keys[item]
@@ -144,5 +152,9 @@ class Monit:
         return list_of_members
         
 
-    def keys(self) -> typing.NoReturn:
+    def keys(self) -> None:
         print(json.dumps(self._keys, indent=2))
+
+    def stations(self) -> set:
+        return self.__stations
+

@@ -1,6 +1,7 @@
 __all__ = ["plt", "so", "set_plt_style", "plot"]
 
 from .. import create_stream_logger
+from ..CONSTANTS import PLOT
 
 plotting_logger = create_stream_logger("utils.plotting")
 del create_stream_logger
@@ -32,6 +33,8 @@ def set_plt_style(styles: str = "single") -> None:
         figuresize = [3.3, 2.5]
     elif "triple" in opts:
         figuresize = [2.2, 2.5]
+    elif "slim" in opts:
+        figuresize = [6.6, 2.2]
     else:
         plotting_logger.warning(
             f"I dont know what to do with the arguments youve given me: {opts}"
@@ -71,7 +74,7 @@ def set_plt_style(styles: str = "single") -> None:
         # DARK COLORS
         TEXT_COLOR = "gray"
         BG_COLOR = "#171717"
-        colors = ["gray", "r", "steelblue", "g"]
+        colors = PLOT.dark_mode
 
         plt.rcParams["axes.edgecolor"] = TEXT_COLOR
         plt.rcParams["axes.facecolor"] = BG_COLOR
@@ -81,14 +84,13 @@ def set_plt_style(styles: str = "single") -> None:
         plt.rcParams["xtick.color"] = TEXT_COLOR
         plt.rcParams["ytick.color"] = TEXT_COLOR
     else:
-        colors = ["k", "r", "b", "g", 'c']
+        colors = PLOT.light_mode
 
     from matplotlib import cycler
 
     plt.rcParams["axes.prop_cycle"] = cycler(
-        color=colors, ls=["-", "--", ":", "-.",
-                          (0, (3, 5, 1, 5))], 
-                          marker=["none", "o", "s", "^", "v"]
+        color=colors, ls=PLOT.ls_rotation, 
+        marker=PLOT.marker_rotation
     )
 
 
