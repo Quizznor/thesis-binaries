@@ -73,7 +73,7 @@ def AperturePlot(ax=None, filterStructure=True) -> plt.axes:
             ls="solid",
         )
 
-    ax.add_artist(corrector)
+    # ax.add_artist(corrector)
     ax.set_xlim(-1300, 1300)
     ax.set_ylim(-1300, 1300)
     ax.set_aspect("equal", "box")

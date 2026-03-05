@@ -26,7 +26,7 @@ class Periodogram(LombScargle):
     def power_spectral_density(self):
         freq, power = self.autopower(
                 minimum_frequency = 1/np.max(self.t),
-                maximum_frequency = 1,
+                maximum_frequency = 0.1,
                 samples_per_peak = 10,
                 normalization = "psd"
         )
@@ -223,7 +223,16 @@ class CameraNSB():
 
 class PixelNSB():
 
+    abbrev = {
+            "LosLeones": "LL",
+            "LosMorados": "LM",
+            "LomaAmarilla": "LA",
+            "Coihueco": "CO",
+            "Heat": "HE",
+        }
+
     def __init__(self, pixel, site, tel, df) -> None:
+        self.site_short = self.abbrev[site]
         self.pixel = pixel
         self.site = site
         self.tel = tel
@@ -271,7 +280,7 @@ class PixelNSB():
                        lw=0.3, color="orange")
 
         ax.set_ylabel("$\sigma^2_\mathrm{NSB}$ / ADC$^2$")
-        ax.legend(title=f'{self.site} {self.tel} $-$ Pixel #{self.pixel}')
+        ax.legend(title=f'{self.site_short} {self.tel} $-$ Pixel #{self.pixel}')
         plot.apply_datetime_format(ax)
 
     

@@ -347,6 +347,7 @@ class Campaign(XYRunContainer):
             "Coihueco": "#319c31",
             "Heat": "#e1efaf"
         }
+
         plt.axvspan(0, 7, alpha=0.15, color=colors["LosLeones"], ec='none')
         plt.axvspan(7, 14, alpha=0.15, color=colors["LosMorados"], ec='none')
         plt.axvspan(14, 21, alpha=0.15, color=colors["LomaAmarilla"], ec='none')

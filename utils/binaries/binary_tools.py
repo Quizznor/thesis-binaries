@@ -115,8 +115,9 @@ def bootstrap_ci(
 
     for params in bootstrap_params.T:
 
-        err_up = np.maximum(err_up, fctn(x_vals, *params))
-        err_down = np.minimum(err_down, fctn(x_vals, *params))
+        vals = fctn(x_vals, *params)
+        err_up = np.maximum(err_up, vals)
+        err_down = np.minimum(err_down, vals)
 
     return err_up, err_down
 
