@@ -140,7 +140,7 @@ class SdHisto:
 
 
     @staticmethod
-    def fit_ssd(counts: np.ndarray) -> list[uncertainties.ufloat]:
+    def fit_ssd(counts: np.ndarray, verbose=1) -> list[uncertainties.ufloat]:
 
         try:
             match len(counts):
@@ -189,7 +189,7 @@ class SdHisto:
             return popts
 
         except Exception as e:
-            print(f'SSD SdHisto fit failed: {e}')
+            if verbose: print(f'SSD SdHisto fit failed: {e}')
             return [uncertainties.ufloat(np.nan, np.nan) for _ in range(3)]
 
 

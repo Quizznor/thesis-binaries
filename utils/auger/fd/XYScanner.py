@@ -275,25 +275,25 @@ class Campaign(XYRunContainer):
         fig, ax = plt.subplots()
 
         if normalize == 'none':
-            ax.set_ylabel(r'calib. const. / $\left( \gamma\,/\,\mathrm{ADC} \right)$')
+            ax.set_ylabel(r'$C^\mathrm{XY}_\mathrm{abs.}$ / $\left( \gamma\,/\,\mathrm{ADC} \right)$')
         elif normalize.lower() == 'cala':
             cala_drift = kwargs.get('cala_drift', 0)
             drift_label = fr"($+\frac{{ {1e2*cala_drift}\% }}{{ \mathrm{{year}} }}$)" if cala_drift else ""
-            ax.set_ylabel(f'XY calib. const. / std. calib. {drift_label}')
+            ax.set_ylabel(fr'$C^\mathrm{{XY}}_\mathrm{{abs.}}$ / $C^\mathrm{{Drum}}_\mathrm{{abs.}}$ {drift_label}')
             time_difference_years = (datetime(self.year, self.month, 1) - datetime(2010,6, 1)).days / 365
             # ax.fill_between([0,32], 1-0.099, 1+0.099, color='k', alpha=0.1, edgecolor='none')
         else:
-            ax.set_ylabel(f'XY calib. const. / {kwargs.get("label", "custom norm")}')
+            ax.set_ylabel(f'$C^\mathrm{{XY}}_\mathrm{{abs.}}$ / {kwargs.get("label", "custom norm")}')
 
-        ax.text(
-            0, 1,
-            f"{self.year}-{self.month} XY campaign summary",
-            transform=ax.transAxes,
-            ha="left",
-            va="bottom",
-            fontsize="large",
-            fontweight="bold",
-        )
+        # ax.text(
+        #     0, 1,
+        #     f"{self.year}-{self.month} XY campaign summary",
+        #     transform=ax.transAxes,
+        #     ha="left",
+        #     va="bottom",
+        #     fontsize="large",
+        #     fontweight="bold",
+        # )
         
         ax.set_xticklabels([], fontsize=8, rotation=90)
         ax.set_xticks([], minor=True)
