@@ -11,7 +11,6 @@ import glob
 import json
 import re
 
-
 class Monit:
 
     # monit_paths = [
@@ -22,7 +21,7 @@ class Monit:
     # ]
     monit_paths = [CONSTANTS.MONI_PATH]
 
-    def __init__(self, *args, starting_branch=None, verbosity=logging.INFO) -> None:
+    def __init__(self, *args, starting_branch=None, verbosity=logging.INFO, select_all=False) -> None:
 
         starting_branch = starting_branch or "SDMonCal/SDMonCalBranch"
         self.logger = create_stream_logger("SD.Monitor", loglevel=verbosity)
@@ -50,7 +49,7 @@ class Monit:
                         continue
                     elif len(candidates) == 1:
                         full_file_paths.append(f"{path}/{y:04}/{m:02}/{candidates[0]}")
-                    elif len(candidates) > 1:
+                    elif len(candidates) > 1 and not select_all:
                         query = "(0) ALL FILES BELOW\n"
                         for i, c in enumerate(candidates, 1):
                             query += f"({i}) {c}\n"
@@ -66,6 +65,9 @@ class Monit:
                         else:
                             for c in candidates:
                                 full_file_paths.append(f"{path}/{y:04}/{m:02}/{c}")
+                    elif select_all:
+                        for c in candidates:
+                            full_file_paths.append(f"{path}/{y:04}/{m:02}/{c}")
 
                     break
                 else:

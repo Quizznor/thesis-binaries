@@ -26,7 +26,7 @@ class Periodogram(LombScargle):
     def power_spectral_density(self):
         freq, power = self.autopower(
                 minimum_frequency = 1/np.max(self.t),
-                maximum_frequency = 0.1,
+                maximum_frequency = 1,
                 samples_per_peak = 10,
                 normalization = "psd"
         )
@@ -262,7 +262,8 @@ class PixelNSB():
 
         if show_mean:
             ax.plot(*tools.running_mean(x, y, 7 * 30), marker='none',
-                    label="1-month rolling mean")
+                    # label=f"Pixel #{self.pixel} 1-month rolling mean", ls='-')
+                    label=f"1-month rolling mean", ls='-')
 
         if show_drift:
             popt, pcov = np.polyfit(xt, y, deg=1, cov=True)
@@ -304,13 +305,17 @@ class PixelNSB():
         return periodogram
 
 
-    def get_model(self, show=False, **peak_kwargs) -> callable:
+    def get_model(self, show=False, return_peaks=False, return_amplitudes=False, **peak_kwargs) -> callable:
         
         if not hasattr(self, "_periodogram"):
             _ = self.periodogram(show=False)
 
         n_peaks = peak_kwargs.pop('n_peaks', 1)
         period, power = self._periodogram.power_spectral_density()
+
+        if (rel_height := peak_kwargs.get("rel_height", False)):
+            peak_kwargs['height'] = rel_height * np.max(power)
+        
         peaks = find_peaks(power, **peak_kwargs)[0][:-n_peaks-1:-1]
 
         def fct(x):
@@ -332,7 +337,14 @@ class PixelNSB():
             self._periodogram.show(ax2)
             ax1.plot(self.df["datetime"], fct(self.df["days_since_start"]), c='red', marker='none')
 
-        return fct
+        rv = fct if not (return_peaks or return_amplitudes) else [fct] 
+
+        if return_peaks:
+            rv.append([1/period[p] for p in peaks])
+        if return_amplitudes:
+            rv.append([power[p] for p in peaks])
+        
+        return rv
     
 
     def add_cloud_information(self):
